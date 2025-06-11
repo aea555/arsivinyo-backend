@@ -24,7 +24,7 @@ app.all("/download", (req, res, next) => {
 
 app.post("/download", tokenHandler, limiter, downloadHandler);
 
-app.all("*", (req, res) => {
+app.all(/(.*)/, (req, res) => {
   res.status(405).send("Method Not Allowed");
   return;
 });
