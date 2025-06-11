@@ -27,3 +27,6 @@ yarn-error.log*
 .vscode/
 .idea/
 *.swp
+
+# Cookies
+cookies.txt

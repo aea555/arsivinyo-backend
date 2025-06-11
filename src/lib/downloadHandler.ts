@@ -4,6 +4,7 @@ import fs from "fs";
 import os from "os";
 import runWithTimeout from "./runWithTimeout.js";
 import { getBinaryPath } from "./getBinaryPath.js";
+import { getCookiesPath } from "./getCookiesPath.js";
 
 const MAX_FILE_SIZE = 100 * 1024 * 1024; // 100 MB
 
@@ -41,7 +42,10 @@ export default async function downloadHandler(req: Request, res: Response) {
   const ytDlp = getBinaryPath("yt-dlp");
   const ffmpeg = getBinaryPath("ffmpeg");
 
-  const downloadCmd = `"${ytDlp}" --no-cache-dir --no-mtime --no-playlist -f best -o "${rawPath}" "${sanitizedUrl}"`;
+  const cookiesPath = getCookiesPath();
+  const cookiesArg = `--cookies "${cookiesPath}"`;
+
+  const downloadCmd = `"${ytDlp}" ${cookiesArg} --no-cache-dir --no-mtime --no-playlist -f best -o "${rawPath}" "${sanitizedUrl}"`;
   const ffmpegCmd = `"${ffmpeg}" -i "${rawPath}" -c copy -map_metadata -1 -metadata creation_time=now "${cleanPath}"`;
 
   const tempFiles = [rawPath, cleanPath];
