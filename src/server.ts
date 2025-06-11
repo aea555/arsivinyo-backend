@@ -28,3 +28,7 @@ app.all(/(.*)/, (req, res) => {
   res.status(405).send("Method Not Allowed");
   return;
 });
+
+app.listen(PORT, () => {
+  console.log(`Server is running on port ${PORT}`);
+});
