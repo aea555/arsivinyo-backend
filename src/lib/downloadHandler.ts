@@ -2,8 +2,8 @@ import { Request, Response } from "express";
 import path from "path";
 import fs from "fs";
 import os from "os";
-import runWithTimeout from "./runWithTimeout";
-import { getBinaryPath } from "./getBinaryPath";
+import runWithTimeout from "./runWithTimeout.js";
+import { getBinaryPath } from "./getBinaryPath.js";
 
 const MAX_FILE_SIZE = 100 * 1024 * 1024; // 100 MB
 

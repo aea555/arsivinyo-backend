@@ -2,9 +2,9 @@ import express from "express";
 import cors from "cors";
 import helmet from "helmet";
 import dotenv from "dotenv";
-import limiter from "./lib/rateLimiter";
-import tokenHandler from "./lib/tokenHandler";
-import downloadHandler from "./lib/downloadHandler";
+import limiter from "./lib/rateLimiter.js";
+import tokenHandler from "./lib/tokenHandler.js";
+import downloadHandler from "./lib/downloadHandler.js";
 dotenv.config();
 
 const app = express();
