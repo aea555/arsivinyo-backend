@@ -43,9 +43,10 @@ export default async function downloadHandler(req: Request, res: Response) {
   const ffmpeg = getBinaryPath("ffmpeg");
 
   const cookiesPath = getCookiesPath();
+  const format = `-f "bv[height<=480]+ba/b[height<=480]"`;
   const cookiesArg = `--cookies "${cookiesPath}"`;
 
-  const downloadCmd = `"${ytDlp}" ${cookiesArg} --no-cache-dir --no-mtime --no-playlist -f best -o "${rawPath}" "${sanitizedUrl}"`;
+  const downloadCmd = `"${ytDlp}" ${cookiesArg} ${format} --no-cache-dir --no-mtime --no-playlist -o "${rawPath}" "${sanitizedUrl}"`;
   const ffmpegCmd = `"${ffmpeg}" -i "${rawPath}" -c copy -map_metadata -1 -metadata creation_time=now "${cleanPath}"`;
 
   const tempFiles = [rawPath, cleanPath];
