@@ -1,6 +1,0 @@
-services:
-  - type: web
-    name: arsivinyo-backend
-    runtime: docker
-    plan: free
-    autoDeploy: true
