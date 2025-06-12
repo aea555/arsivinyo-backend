@@ -88,7 +88,7 @@ export default async function downloadHandler(req: Request, res: Response) {
       "Access-Control-Expose-Headers": "Content-Disposition",
     });
 
-    if (process.env.NODE_ENV === "production") {
+    if (process.env.NODE_ENV !== "production") {
       console.log("Incoming download request:", url);
       console.log("Sanitized URL:", sanitizedUrl);
       console.log("Cookies path:", cookiesPath);
@@ -100,7 +100,7 @@ export default async function downloadHandler(req: Request, res: Response) {
 
     res.send(buffer);
   } catch (err) {
-    if (process.env.NODE_ENV === "production") {
+    if (process.env.NODE_ENV !== "production") {
       console.error("❗ İndirme sırasında hata oluştu:", err);
     }
     res.status(500).send("İndirme sırasında hata oluştu.");
