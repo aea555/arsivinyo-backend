@@ -43,8 +43,12 @@ export default async function downloadHandler(req: Request, res: Response) {
   const ffmpeg = getBinaryPath("ffmpeg");
 
   const cookiesPath = getCookiesPath();
-  const format = `-f "bv[height<=480]+ba/b[height<=480]"`;
-  const cookiesArg = `--cookies "${cookiesPath}"`;
+  const isYouTube = /youtube\.com|youtu\.be/.test(sanitizedUrl);
+  const format = isYouTube
+    ? '-f "bv*[ext=mp4][height<=480]+ba[ext=m4a]/b[ext=mp4][height<=480]"'
+    : "-f best";
+
+  const cookiesArg = isYouTube ? `--cookies "${cookiesPath}"` : "";
 
   const downloadCmd = `"${ytDlp}" ${cookiesArg} ${format} --no-cache-dir --no-mtime --no-playlist -o "${rawPath}" "${sanitizedUrl}"`;
   const ffmpegCmd = `"${ffmpeg}" -i "${rawPath}" -c copy -map_metadata -1 -metadata creation_time=now "${cleanPath}"`;
@@ -84,8 +88,22 @@ export default async function downloadHandler(req: Request, res: Response) {
       "Access-Control-Expose-Headers": "Content-Disposition",
     });
 
+    if (process.env.NODE_ENV !== "production") {
+      console.log("Incoming download request:", url);
+      console.log("Sanitized URL:", sanitizedUrl);
+      console.log("Cookies path:", cookiesPath);
+      console.log("yt-dlp path:", ytDlp);
+      console.log("ffmpeg path:", ffmpeg);
+      console.log("yt-dlp command:", downloadCmd);
+      console.log("ffmpeg command:", ffmpegCmd);
+    }
+
     res.send(buffer);
   } catch (err) {
+    if (process.env.NODE_ENV !== "production") {
+      console.error("❗ İndirme sırasında hata oluştu:", err);
+    }
     res.status(500).send("İndirme sırasında hata oluştu.");
+    return;
   }
 }

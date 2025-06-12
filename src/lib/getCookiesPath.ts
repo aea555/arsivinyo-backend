@@ -3,7 +3,7 @@ import { fileURLToPath } from "url";
 
 export function getCookiesPath(): string {
   const isProduction = process.env.NODE_ENV === "production";
-  if (isProduction) return "/app/cookies.txt"; // uses global cookies.txt in container
+  if (isProduction) return path.join(process.cwd(), "cookies.txt"); 
 
   const __filename = fileURLToPath(import.meta.url);
   const __dirname = path.dirname(__filename);

@@ -21,7 +21,11 @@ RUN npm run build
 # Expose port (Render uses env.PORT)
 EXPOSE 3001
 
+# Arg for local testing
+ARG AUTH_TOKEN
+
 ENV NODE_ENV=production
+ENV AUTH_TOKEN=$AUTH_TOKEN
 
 # Start the app
 CMD ["node", "dist/server.js"]
