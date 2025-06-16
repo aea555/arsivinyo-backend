@@ -9,7 +9,6 @@ dotenv.config();
 
 const app = express();
 const PORT = process.env.PORT || 3001;
-const isTermux = process.env.TERMUX === "true";
 
 app.set("trust proxy", 1);
 app.use(cors());
@@ -31,12 +30,6 @@ app.all(/(.*)/, (req, res) => {
   return;
 });
 
-if (isTermux) {
-  app.listen(Number(PORT), '0.0.0.0', () => {
-    console.log(`Server running in Termux on 0.0.0.0:${PORT}`);
-  });
-} else {
-  app.listen(Number(PORT), () => {
-    console.log(`Server running locally on port ${PORT}`);
-  });
-}
+app.listen(Number(PORT), '0.0.0.0', () => {
+  console.log(`Server running on 0.0.0.0:${PORT}`);
+});
