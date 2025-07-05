@@ -5,6 +5,7 @@ import os from "os";
 import runWithTimeout from "./runWithTimeout.js";
 import { getBinaryPath } from "./getBinaryPath.js";
 import { getCookiesPath } from "./getCookiesPath.js";
+import cleanup from "./cleanup.js";
 
 const MAX_FILE_SIZE = 100 * 1024 * 1024; // 100 MB
 
@@ -55,16 +56,6 @@ export default async function downloadHandler(req: Request, res: Response) {
 
   const tempFiles = [rawPath, cleanPath];
 
-  const cleanup = () => {
-    tempFiles.forEach((file) => {
-      if (fs.existsSync(file)) fs.unlinkSync(file);
-    });
-  };
-  process.on("exit", cleanup);
-  process.on("SIGINT", () => process.exit(0));
-  process.on("SIGTERM", () => process.exit(0));
-  process.on("uncaughtException", () => process.exit(1));
-
   try {
     await runWithTimeout(downloadCmd, 60_000, "yt-dlp");
 
@@ -105,5 +96,8 @@ export default async function downloadHandler(req: Request, res: Response) {
     }
     res.status(500).send("İndirme sırasında hata oluştu.");
     return;
+  }
+  finally {
+    cleanup(tempFiles);
   }
 }
