@@ -69,8 +69,6 @@ export default async function downloadHandler(req: Request, res: Response) {
     await runWithTimeout(ffmpegCmd, 30_000, "ffmpeg");
 
     const buffer = fs.readFileSync(cleanPath);
-    fs.unlinkSync(rawPath);
-    fs.unlinkSync(cleanPath);
 
     res.set({
       "Content-Type": "video/mp4",
