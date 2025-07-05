@@ -52,7 +52,8 @@ export default async function downloadHandler(req: Request, res: Response) {
   const cookiesArg = isYouTube ? `--cookies "${cookiesPath}"` : "";
 
   const downloadCmd = `"${ytDlp}" ${cookiesArg} ${format} --no-cache-dir --no-mtime --no-playlist -o "${rawPath}" "${sanitizedUrl}"`;
-  const ffmpegCmd = `"${ffmpeg}" -i "${rawPath}" -c copy -map_metadata -1 -metadata creation_time=now "${cleanPath}"`;
+  const ffmpegRemuxCmd = `"${ffmpeg}" -y -fflags +genpts -i "${rawPath}" -c copy -map_metadata -1 -metadata creation_time=now "${cleanPath}"`;
+  const ffmpegReencodeCmd = `"${ffmpeg}" -y -i "${rawPath}" -map_metadata -1 -metadata creation_time=now -c:v libx264 -preset fast -crf 23 -c:a aac -b:a 128k "${cleanPath}"`;
 
   const tempFiles = [rawPath, cleanPath];
 
@@ -66,7 +67,18 @@ export default async function downloadHandler(req: Request, res: Response) {
       return;
     }
 
-    await runWithTimeout(ffmpegCmd, 30_000, "ffmpeg");
+    try {
+      await runWithTimeout(ffmpegRemuxCmd, 30_000, "ffmpeg");
+    } catch (ffmpegErr) {
+      console.warn("🔁 Remuxing failed, trying re-encoding...");
+
+      try {
+        await runWithTimeout(ffmpegReencodeCmd, 120_000, "ffmpeg");
+      } catch (reencodeErr) {
+        console.error("❌ Re-encoding failed:", reencodeErr);
+        throw reencodeErr; 
+      }
+    }
 
     const buffer = fs.readFileSync(cleanPath);
 
@@ -84,7 +96,8 @@ export default async function downloadHandler(req: Request, res: Response) {
       console.log("yt-dlp path:", ytDlp);
       console.log("ffmpeg path:", ffmpeg);
       console.log("yt-dlp command:", downloadCmd);
-      console.log("ffmpeg command:", ffmpegCmd);
+      console.log("ffmpeg remux command:", ffmpegRemuxCmd);
+      console.log("ffmpeg reencoding command:", ffmpegReencodeCmd);
     }
 
     res.send(buffer);
@@ -94,8 +107,7 @@ export default async function downloadHandler(req: Request, res: Response) {
     }
     res.status(500).send("İndirme sırasında hata oluştu.");
     return;
-  }
-  finally {
+  } finally {
     cleanup(tempFiles);
   }
 }
