@@ -6,10 +6,12 @@ import runWithTimeout from "./runWithTimeout.js";
 import { getBinaryPath } from "./getBinaryPath.js";
 import { getCookiesPath } from "./getCookiesPath.js";
 import cleanup from "./cleanup.js";
+import waitForFile from "./waitForFile.js"
 
 const MAX_FILE_SIZE = 100 * 1024 * 1024; // 100 MB
 
 export default async function downloadHandler(req: Request, res: Response) {
+  const isProduction = process.env.NODE_ENV === "production";
   const { url } = req.body as { url: string };
 
   if (!url) {
@@ -45,21 +47,44 @@ export default async function downloadHandler(req: Request, res: Response) {
 
   const cookiesPath = getCookiesPath();
   const isYouTube = /youtube\.com|youtu\.be/.test(sanitizedUrl);
+
+  // Force mp4 format for YouTube
   const format = isYouTube
+    ? '-f "bv*[ext=mp4][protocol!=m3u8][height<=480]+ba[ext=m4a][protocol!=m3u8]/b[ext=mp4][protocol!=m3u8][height<=480]"'
+    : "-f best";
+
+  const fallbackFormat = isYouTube
     ? '-f "bv*[ext=mp4][height<=480]+ba[ext=m4a]/b[ext=mp4][height<=480]"'
     : "-f best";
 
   const cookiesArg = isYouTube ? `--cookies "${cookiesPath}"` : "";
 
   const downloadCmd = `"${ytDlp}" ${cookiesArg} ${format} --no-cache-dir --no-mtime --no-playlist -o "${rawPath}" "${sanitizedUrl}"`;
+  const downloadCmdFallback = `"${ytDlp}" ${cookiesArg} ${fallbackFormat} --no-cache-dir --no-mtime --no-playlist -o "${rawPath}" "${sanitizedUrl}"`;
+  const ffmpegCmd = `"${ffmpeg}" -i "${rawPath}" -c copy -map_metadata -1 -metadata creation_time=now "${cleanPath}"`;
   const ffmpegRemuxCmd = `"${ffmpeg}" -y -fflags +genpts -i "${rawPath}" -c copy -map_metadata -1 -metadata creation_time=now "${cleanPath}"`;
   const ffmpegReencodeCmd = `"${ffmpeg}" -y -i "${rawPath}" -map_metadata -1 -metadata creation_time=now -c:v libx264 -preset fast -crf 23 -c:a aac -b:a 128k "${cleanPath}"`;
 
   const tempFiles = [rawPath, cleanPath];
 
   try {
-    await runWithTimeout(downloadCmd, 60_000, "yt-dlp");
+    const DOWNLOAD_TIMEOUT = isProduction ? 5 * 60_000 : 2 * 60_000;
+    const DOWNLOAD_TIMEOUT_FALLBACK = isProduction ? 7.5 * 60_000 : 3 * 60_000;
 
+    try {
+      await runWithTimeout(downloadCmd, DOWNLOAD_TIMEOUT, "yt-dlp");
+    } catch (err) {
+      console.warn("Primary yt-dlp command failed, trying fallback format...");
+      try {
+        await runWithTimeout(downloadCmdFallback, DOWNLOAD_TIMEOUT_FALLBACK, "yt-dlp fallback");
+      } catch (fallbackErr) {
+        console.error("Both yt-dlp commands failed:", fallbackErr);
+        res.status(500).send("İndirme başarısız oldu (yt-dlp).");
+        return;
+      }
+    }
+
+    await waitForFile(rawPath)
     const stats = fs.statSync(rawPath);
     if (stats.size > MAX_FILE_SIZE) {
       fs.unlinkSync(rawPath);
@@ -68,15 +93,20 @@ export default async function downloadHandler(req: Request, res: Response) {
     }
 
     try {
-      await runWithTimeout(ffmpegRemuxCmd, 30_000, "ffmpeg");
-    } catch (ffmpegErr) {
-      console.warn("🔁 Remuxing failed, trying re-encoding...");
-
+      await runWithTimeout(ffmpegCmd, 30_000, "ffmpeg");
+    } catch (remuxErr) {
+      console.warn("Remuxing failed, trying re-encoding...");
       try {
-        await runWithTimeout(ffmpegReencodeCmd, 120_000, "ffmpeg");
+        await runWithTimeout(ffmpegRemuxCmd, 60_000, "ffmpeg");
       } catch (reencodeErr) {
-        console.error("❌ Re-encoding failed:", reencodeErr);
-        throw reencodeErr; 
+        console.warn("Overwrite remux failed, trying full re-encoding...");
+        try {
+          await runWithTimeout(ffmpegReencodeCmd, 120_000, "ffmpeg");
+        } catch (finalErr) {
+          console.error("Re-encoding failed:", finalErr);
+          res.status(500).send("FFmpeg işlemi başarısız oldu.");
+          return;
+        }
       }
     }
 
@@ -89,7 +119,7 @@ export default async function downloadHandler(req: Request, res: Response) {
       "Access-Control-Expose-Headers": "Content-Disposition",
     });
 
-    if (process.env.NODE_ENV !== "production") {
+    if (!isProduction) {
       console.log("Incoming download request:", url);
       console.log("Sanitized URL:", sanitizedUrl);
       console.log("Cookies path:", cookiesPath);
@@ -102,7 +132,7 @@ export default async function downloadHandler(req: Request, res: Response) {
 
     res.send(buffer);
   } catch (err) {
-    if (process.env.NODE_ENV !== "production") {
+    if (!isProduction) {
       console.error("❗ İndirme sırasında hata oluştu:", err);
     }
     res.status(500).send("İndirme sırasında hata oluştu.");

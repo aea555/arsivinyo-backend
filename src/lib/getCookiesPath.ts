@@ -3,8 +3,11 @@ import { fileURLToPath } from "url";
 
 export function getCookiesPath(): string {
   const isProduction = process.env.NODE_ENV === "production";
-  const isTermux = process.env.TERMUX === "true";
-  if (isProduction || isTermux) return path.join(process.cwd(), "cookies.txt"); 
+
+  if (isProduction) {
+    // In production, assuming cookies.txt is in the working directory
+    return path.join(process.cwd(), "cookies.txt");
+  }
 
   const __filename = fileURLToPath(import.meta.url);
   const __dirname = path.dirname(__filename);
